@@ -1,0 +1,10 @@
+2015-03-20
+edu.uci.ics.crawler4j.crawler 基本逻辑和配置
+edu.uci.ics.crawler4j.fetcher 爬取
+edu.uci.ics.crawler4j.frontier URL队列相关
+edu.uci.ics.crawler4j.parser 对爬取结果进行解析
+edu.uci.ics.crawler4j.robotstxt 检查robots.txt是否存在
+edu.uci.ics.crawler4j.url URL相关，主要是WebURL
+edu.uci.ics.crawler4j.util 是工具类
+
+
