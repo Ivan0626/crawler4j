@@ -33,7 +33,9 @@ public class BasicCrawlController {
   private static final Logger logger = LoggerFactory.getLogger(BasicCrawlController.class);
 
   public static void main(String[] args) throws Exception {
-    if (args.length != 2) {
+	  args = new String[]{"data/crawl/root/", "5"};
+	  
+	  if (args.length != 2) {
       logger.info("Needed parameters: ");
       logger.info("\t rootFolder (it will contain intermediate crawl data)");
       logger.info("\t numberOfCralwers (number of concurrent threads)");
@@ -55,6 +57,7 @@ public class BasicCrawlController {
     CrawlConfig config = new CrawlConfig();
 
     config.setCrawlStorageFolder(crawlStorageFolder);
+    
 
     /*
      * Be polite: Make sure that we don't send more than 1 request per
@@ -66,7 +69,7 @@ public class BasicCrawlController {
      * You can set the maximum crawl depth here. The default value is -1 for
      * unlimited depth
      */
-    config.setMaxDepthOfCrawling(2);
+    config.setMaxDepthOfCrawling(1);//只爬两层
 
     /*
      * You can set the maximum number of pages to crawl. The default value
@@ -112,8 +115,8 @@ public class BasicCrawlController {
      * which are found in these pages
      */
     controller.addSeed("http://www.ics.uci.edu/");
-    controller.addSeed("http://www.ics.uci.edu/~lopes/");
-    controller.addSeed("http://www.ics.uci.edu/~welling/");
+    //controller.addSeed("http://www.ics.uci.edu/~lopes/");
+    //controller.addSeed("http://www.ics.uci.edu/~welling/");
 
     /*
      * Start the crawl. This is a blocking operation, meaning that your code
