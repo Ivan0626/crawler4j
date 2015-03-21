@@ -19,10 +19,15 @@ package edu.uci.ics.crawler4j.fetcher;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLContext;
 
@@ -53,6 +58,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.params.CoreConnectionPNames;
 import org.apache.http.ssl.SSLContexts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +69,6 @@ import edu.uci.ics.crawler4j.crawler.authentication.AuthInfo;
 import edu.uci.ics.crawler4j.crawler.authentication.BasicAuthInfo;
 import edu.uci.ics.crawler4j.crawler.authentication.FormAuthInfo;
 import edu.uci.ics.crawler4j.crawler.exceptions.PageBiggerThanMaxSizeException;
-import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
@@ -79,12 +84,13 @@ public class PageFetcher extends Configurable {
   protected IdleConnectionMonitorThread connectionMonitorThread = null;
 
   public PageFetcher(CrawlConfig config) {
+	  //PageFetcher抓取对象绑定config
     super(config);
 
     RequestConfig requestConfig =
         RequestConfig.custom().setExpectContinueEnabled(false).setCookieSpec(CookieSpecs.DEFAULT)
                      .setRedirectsEnabled(false).setSocketTimeout(config.getSocketTimeout())
-                     .setConnectTimeout(config.getConnectionTimeout()).build();
+                     .setConnectTimeout(config.getConnectionTimeout()).setConnectionRequestTimeout(config.getConnectionRequestTimeout()).build();
 
     RegistryBuilder<ConnectionSocketFactory> connRegistryBuilder = RegistryBuilder.create();
     connRegistryBuilder.register("http", PlainConnectionSocketFactory.INSTANCE);
@@ -201,6 +207,16 @@ public class PageFetcher extends Configurable {
     HttpUriRequest request = null;
     try {
       request = newHttpUriRequest(toFetchURL);
+      
+      //添加请求头部信息(全局的)
+      for (Map.Entry<String, String> entry : config.getCustomHeaders().entrySet()) {
+    	  request.addHeader(entry.getKey(), entry.getKey());
+      }
+      //添加请求头部信息(私有的)
+      if(webUrl.getHeaderName() != null && webUrl.getHeaderValue() != null){
+    	  request.addHeader(webUrl.getHeaderName(), webUrl.getHeaderValue());
+      }
+      
       // Applying Politeness delay
       synchronized (mutex) {
         long now = (new Date()).getTime();
@@ -225,16 +241,18 @@ public class PageFetcher extends Configurable {
 
         Header header = response.getFirstHeader("Location");
         if (header != null) {
-          String movedToUrl = URLCanonicalizer.getCanonicalURL(header.getValue(), toFetchURL);
+          //String movedToUrl = URLCanonicalizer.getCanonicalURL(header.getValue(), toFetchURL);
+          String movedToUrl = header.getValue();//modify by Ivan at 2015-3-31 不进行URL规则校验
           fetchResult.setMovedToUrl(movedToUrl);
         }
       } else if (statusCode == HttpStatus.SC_OK) { // is 200, everything looks ok
         fetchResult.setFetchedUrl(toFetchURL);
         String uri = request.getURI().toString();
         if (!uri.equals(toFetchURL)) {
-          if (!URLCanonicalizer.getCanonicalURL(uri).equals(toFetchURL)) {
-            fetchResult.setFetchedUrl(uri);
-          }
+//          if (!URLCanonicalizer.getCanonicalURL(uri).equals(toFetchURL)) {
+//            fetchResult.setFetchedUrl(uri);
+//          }
+        	fetchResult.setFetchedUrl(uri);//modify by Ivan at 2015-3-31 不进行URL规则校验
         }
 
         // Checking maximum size
@@ -280,7 +298,24 @@ public class PageFetcher extends Configurable {
    * @return the HttpUriRequest for the given url
    */
   protected HttpUriRequest newHttpUriRequest(String url) {
-    return new HttpGet(url);
+	  if(url.indexOf("%") > -1){//不需要转码
+		  return new HttpGet(url);
+	  }
+	  
+	  //地址中涉及了特殊字符，如‘｜’‘&’等,必须采用%0xXX方式来替代特殊字符,先把String转成URL，再通过过URL生成URI
+	try {
+		URL toUrl = new URL(url);
+		try {
+			URI uri = new URI(toUrl.getProtocol(), toUrl.getHost(), toUrl.getPath(), toUrl.getQuery(), toUrl.getRef());
+			
+			return new HttpGet(uri);//利用apache http-client 的GET方式访问URL
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+	} catch (MalformedURLException e) {
+		e.printStackTrace();
+	}
+    return null;
   }
 
 }

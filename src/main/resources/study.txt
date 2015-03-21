@@ -7,4 +7,5 @@ edu.uci.ics.crawler4j.robotstxt 检查robots.txt是否存在
 edu.uci.ics.crawler4j.url URL相关，主要是WebURL
 edu.uci.ics.crawler4j.util 是工具类
 
-
+2015-03-21
+添加阅读源码的一些注释

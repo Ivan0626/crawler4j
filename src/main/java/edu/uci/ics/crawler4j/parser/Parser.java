@@ -52,6 +52,7 @@ public class Parser extends Configurable {
 
   public Parser(CrawlConfig config) {
     super(config);
+    //使用Apache tika 解析html
     htmlParser = new HtmlParser();
     parseContext = new ParseContext();
   }
@@ -65,7 +66,9 @@ public class Parser extends Configurable {
         if (parseData.getHtml() == null) {
           throw new ParseException();
         }
-        parseData.setOutgoingUrls(Net.extractUrls(parseData.getHtml()));
+        if(config.getMaxOutgoingLinksToFollow() > 0){//只有设置了包含外链接，才会解析到URL队列中  modify by Ivan at 2015-03-22
+        	parseData.setOutgoingUrls(Net.extractUrls(parseData.getHtml()));
+        }
       } else {
         throw new NotAllowedContentException();
       }
@@ -77,7 +80,9 @@ public class Parser extends Configurable {
         } else {
           parseData.setTextContent(new String(page.getContentData(), page.getContentCharset()));
         }
-        parseData.setOutgoingUrls(Net.extractUrls(parseData.getTextContent()));
+        if(config.getMaxOutgoingLinksToFollow() > 0){//只有设置了包含外链接，才会解析到URL队列中  modify by Ivan at 2015-03-22
+        	parseData.setOutgoingUrls(Net.extractUrls(parseData.getTextContent()));
+        }
         page.setParseData(parseData);
       } catch (Exception e) {
         logger.error("{}, while parsing: {}", e.getMessage(), page.getWebURL().getURL());
@@ -86,7 +91,7 @@ public class Parser extends Configurable {
     } else { // isHTML
       Metadata metadata = new Metadata();
       HtmlContentHandler contentHandler = new HtmlContentHandler();
-      try (InputStream inputStream = new ByteArrayInputStream(page.getContentData())) {
+      try (InputStream inputStream = new ByteArrayInputStream(page.getContentData())) {//page.getContentData()其实就是http-client中的response.getEntity()
         htmlParser.parse(inputStream, contentHandler, metadata, parseContext);
       } catch (Exception e) {
         logger.error("{}, while parsing: {}", e.getMessage(), page.getWebURL().getURL());
@@ -105,38 +110,42 @@ public class Parser extends Configurable {
       LanguageIdentifier languageIdentifier = new LanguageIdentifier(parseData.getText());
       page.setLanguage(languageIdentifier.getLanguage());
 
-      Set<WebURL> outgoingUrls = new HashSet<>();
+      Set<WebURL> outgoingUrls = new HashSet<>();//解析该页面包含的外链接
 
       String baseURL = contentHandler.getBaseUrl();
       if (baseURL != null) {
         contextURL = baseURL;
       }
 
-      int urlCount = 0;
-      for (ExtractedUrlAnchorPair urlAnchorPair : contentHandler.getOutgoingUrls()) {
+      if(config.getMaxOutgoingLinksToFollow() > 0){//只有设置了包含外链接，才会解析到URL队列中  modify by Ivan at 2015-03-22
+    	  int urlCount = 0;
+          for (ExtractedUrlAnchorPair urlAnchorPair : contentHandler.getOutgoingUrls()) {
 
-        String href = urlAnchorPair.getHref();
-        if ((href == null) || href.trim().isEmpty()) {
-          continue;
-        }
+            String href = urlAnchorPair.getHref();
+            if ((href == null) || href.trim().isEmpty()) {
+              continue;
+            }
 
-        String hrefLoweredCase = href.trim().toLowerCase();
-        if (!hrefLoweredCase.contains("javascript:") && !hrefLoweredCase.contains("mailto:") &&
-            !hrefLoweredCase.contains("@")) {
-          String url = URLCanonicalizer.getCanonicalURL(href, contextURL);
-          if (url != null) {
-            WebURL webURL = new WebURL();
-            webURL.setURL(url);
-            webURL.setTag(urlAnchorPair.getTag());
-            webURL.setAnchor(urlAnchorPair.getAnchor());
-            outgoingUrls.add(webURL);
-            urlCount++;
-            if (urlCount > config.getMaxOutgoingLinksToFollow()) {
-              break;
+            String hrefLoweredCase = href.trim().toLowerCase();
+            if (!hrefLoweredCase.contains("javascript:") && !hrefLoweredCase.contains("mailto:") &&
+                !hrefLoweredCase.contains("@")) {
+              //String url = URLCanonicalizer.getCanonicalURL(href, contextURL);
+              String url = href;//modify by Ivan at 2015-3-31 不进行URL规则校验
+              if (url != null) {
+                WebURL webURL = new WebURL();
+                webURL.setURL(url);
+                webURL.setTag(urlAnchorPair.getTag());
+                webURL.setAnchor(urlAnchorPair.getAnchor());
+                outgoingUrls.add(webURL);
+                urlCount++;
+                if (urlCount > config.getMaxOutgoingLinksToFollow()) {
+                  break;
+                }
+              }
             }
           }
-        }
       }
+      
       parseData.setOutgoingUrls(outgoingUrls);
 
       try {

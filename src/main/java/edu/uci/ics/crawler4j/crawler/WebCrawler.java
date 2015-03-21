@@ -239,27 +239,27 @@ public class WebCrawler implements Runnable {
 
   @Override
   public void run() {
-    onStart();
+    onStart();//执行爬虫前的预处理工作
     while (true) {
-      List<WebURL> assignedURLs = new ArrayList<>(50);
+      List<WebURL> assignedURLs = new ArrayList<>(50);//一个线程最多爬50个URL
       isWaitingForNewURLs = true;
-      frontier.getNextURLs(50, assignedURLs);
-      isWaitingForNewURLs = false;
+      frontier.getNextURLs(50, assignedURLs);//从队列中取出待爬取的URL,放到assignedURLs中
+      isWaitingForNewURLs = false;//表示该线程已经在工作
       if (assignedURLs.isEmpty()) {
         if (frontier.isFinished()) {
           return;
         }
         try {
-          Thread.sleep(3000);
+          Thread.sleep(3000);//爬完之后等待3秒
         } catch (InterruptedException e) {
           logger.error("Error occurred", e);
         }
       } else {
         for (WebURL curURL : assignedURLs) {
           if (curURL != null) {
-            curURL = handleUrlBeforeProcess(curURL);
+            curURL = handleUrlBeforeProcess(curURL);//爬取前对URL可以进行预处理
             processPage(curURL);
-            frontier.setProcessed(curURL);
+            frontier.setProcessed(curURL);//设置curURL处理完成
           }
           if (myController.isShuttingDown()) {
             logger.info("Exiting because of controller shutdown.");
@@ -341,6 +341,11 @@ public class WebCrawler implements Runnable {
             webURL.setDepth(curURL.getDepth());
             webURL.setDocid(-1);
             webURL.setAnchor(curURL.getAnchor());
+            webURL.setExt(curURL.getExt());//add by Ivan at 2015-03-25 URL重定向时，附加参数也需要重新赋值
+            webURL.setHeaderName(curURL.getHeaderName());
+            webURL.setHeaderValue(curURL.getHeaderValue());
+            webURL.setOriginUrl(curURL.getOriginUrl());
+            
             if (shouldVisit(page, webURL)) {
               if (robotstxtServer.allows(webURL)) {
                 webURL.setDocid(docIdServer.getNewDocID(movedToUrl));
@@ -378,7 +383,7 @@ public class WebCrawler implements Runnable {
         ParseData parseData = page.getParseData();
         List<WebURL> toSchedule = new ArrayList<>();
         int maxCrawlDepth = myController.getConfig().getMaxDepthOfCrawling();
-        for (WebURL webURL : parseData.getOutgoingUrls()) {
+        for (WebURL webURL : parseData.getOutgoingUrls()) {//parseData.getOutgoingUrls()暂时不知道是何处解析的--->parser.parse(page, curURL.getURL());方法中处理
           webURL.setParentDocid(curURL.getDocid());
           webURL.setParentUrl(curURL.getURL());
           int newdocid = docIdServer.getDocId(webURL.getURL());
@@ -389,11 +394,11 @@ public class WebCrawler implements Runnable {
           } else {
             webURL.setDocid(-1);
             webURL.setDepth((short) (curURL.getDepth() + 1));
-            if ((maxCrawlDepth == -1) || (curURL.getDepth() < maxCrawlDepth)) {
-              if (shouldVisit(page, webURL)) {
-                if (robotstxtServer.allows(webURL)) {
-                  webURL.setDocid(docIdServer.getNewDocID(webURL.getURL()));
-                  toSchedule.add(webURL);
+            if ((maxCrawlDepth == -1) || (curURL.getDepth() < maxCrawlDepth)) {//如果是爬取深度不受限制 或者 当前深度小于最大爬取深度
+              if (shouldVisit(page, webURL)) {//判断webURL是否符合自定义的爬取规则，注意：webURL是从parseData.getOutgoingUrls()解析出来的
+                if (robotstxtServer.allows(webURL)) {//判断webURL是否符合rebotstxt规则
+                  webURL.setDocid(docIdServer.getNewDocID(webURL.getURL()));//生成docid
+                  toSchedule.add(webURL);//添加到URL队列中
                 } else {
                   logger.debug("Not visiting: {} as per the server's \"robots.txt\" policy", webURL.getURL());
                 }
@@ -403,9 +408,9 @@ public class WebCrawler implements Runnable {
             }
           }
         }
-        frontier.scheduleAll(toSchedule);
+        frontier.scheduleAll(toSchedule);//添加到URL队列中
 
-        visit(page);
+        visit(page);//自定义处理爬取后的页面数据
       }
     } catch (PageBiggerThanMaxSizeException e) {
       onPageBiggerThanMaxSize(curURL.getURL(), e.getPageSize());

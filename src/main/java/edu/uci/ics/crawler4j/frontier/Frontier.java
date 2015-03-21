@@ -107,8 +107,8 @@ public class Frontier extends Configurable {
   }
 
   public void schedule(WebURL url) {
-    int maxPagesToFetch = config.getMaxPagesToFetch();
-    synchronized (mutex) {
+    int maxPagesToFetch = config.getMaxPagesToFetch();//最大爬取的页面数
+    synchronized (mutex) {//线程同步
       try {
         if (maxPagesToFetch < 0 || scheduledPages < maxPagesToFetch) {
           workQueues.put(url);
@@ -159,9 +159,9 @@ public class Frontier extends Configurable {
   }
 
   public void setProcessed(WebURL webURL) {
-    counters.increment(Counters.ReservedCounterNames.PROCESSED_PAGES);
+    counters.increment(Counters.ReservedCounterNames.PROCESSED_PAGES);//标识页面已经处理过
     if (inProcessPages != null) {
-      if (!inProcessPages.removeURL(webURL)) {
+      if (!inProcessPages.removeURL(webURL)) {//从Berkely DB中移除webURL
         logger.warn("Could not remove: {} from list of processed pages.", webURL.getURL());
       }
     }

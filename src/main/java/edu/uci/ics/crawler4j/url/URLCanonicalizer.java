@@ -23,7 +23,11 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.SortedMap;
@@ -52,6 +56,11 @@ public class URLCanonicalizer {
         return null;
       }
 
+      String subfix = "";
+      if(href.lastIndexOf("#") > -1){
+    	  subfix = href.substring(href.lastIndexOf("#"));
+      }
+      
       String path = canonicalURL.getPath();
 
       /*
@@ -93,7 +102,7 @@ public class URLCanonicalizer {
       }
 
       String protocol = canonicalURL.getProtocol().toLowerCase();
-      String pathAndQueryString = normalizePath(path) + queryString;
+      String pathAndQueryString = normalizePath(path) + queryString + subfix;
 
       URL result = new URL(protocol, host, port, pathAndQueryString);
       return result.toExternalForm();
@@ -115,8 +124,26 @@ public class URLCanonicalizer {
     }
 
     final String[] pairs = queryString.split("&");
-    final Map<String, String> params = new HashMap<>(pairs.length);
-
+    //final Map<String, String> params = new HashMap<>(pairs.length);
+    final TreeMap<String, String> params = new TreeMap<>(new Comparator<String>(){
+		List<String> list = new LinkedList<String>();
+		@Override
+        public int compare(String o1, String o2) {
+            int index1 =list.indexOf(o1);
+            int index2 = list.indexOf(o2);
+            if(index1 == -1){
+            	list.add(o1);
+                index1 = list.size() -1;
+            }
+            if(index2 == -1){
+            	list.add(o1);
+                index1 = list.size() -1;
+            }
+            return index1 - index2;
+        }
+    	
+    });//modify by Ivan at 2015-03-24 修正url参数顺序被改变的bug
+    
     for (final String pair : pairs) {
       if (pair.isEmpty()) {
         continue;
@@ -136,7 +163,7 @@ public class URLCanonicalizer {
           break;
       }
     }
-    return new TreeMap<>(params);
+    return params;
   }
 
   /**
@@ -181,8 +208,8 @@ public class URLCanonicalizer {
   private static String percentEncodeRfc3986(String string) {
     try {
       string = string.replace("+", "%2B");
-      string = URLDecoder.decode(string, "UTF-8");
-      string = URLEncoder.encode(string, "UTF-8");
+      //string = URLDecoder.decode(string, "UTF-8");
+      //string = URLEncoder.encode(string, "UTF-8");  //modify by Ivan at 2015-03-27 解决http://www.example.com/display?category=%C6%BD%B0%E5%B5%E7%CA%D3转换后乱码问题
       return string.replace("+", "%20").replace("*", "%2A").replace("%7E", "~");
     } catch (Exception e) {
       return string;

@@ -78,9 +78,11 @@ public class CrawlController extends Configurable {
 
   public CrawlController(CrawlConfig config, PageFetcher pageFetcher, RobotstxtServer robotstxtServer)
       throws Exception {
+	  //CrawlController对象绑定config配置项
     super(config);
-
+    //校验配置是否合理
     config.validate();
+    //创建crawler4j元数据的输出目录
     File folder = new File(config.getCrawlStorageFolder());
     if (!folder.exists()) {
       if (folder.mkdirs()) {
@@ -90,9 +92,9 @@ public class CrawlController extends Configurable {
             "couldn't create the storage folder: " + folder.getAbsolutePath() + " does it already exist ?");
       }
     }
-
+//系统宕机后是否继续爬取
     boolean resumable = config.isResumableCrawling();
-
+//配置Berkely DB的EnvironmentConfig对象
     EnvironmentConfig envConfig = new EnvironmentConfig();
     envConfig.setAllowCreate(true);
     envConfig.setTransactional(resumable);
@@ -113,11 +115,11 @@ public class CrawlController extends Configurable {
     }
 
     env = new Environment(envHome, envConfig);
-    docIdServer = new DocIDServer(env, config);
-    frontier = new Frontier(env, config);
+    docIdServer = new DocIDServer(env, config);//初始化docIdServer
+    frontier = new Frontier(env, config);//初始化URL队列
 
-    this.pageFetcher = pageFetcher;
-    this.robotstxtServer = robotstxtServer;
+    this.pageFetcher = pageFetcher;//绑定爬虫到CrawlController对象
+    this.robotstxtServer = robotstxtServer;//绑定robotstxt规则到CrawlController对象
 
     finished = false;
     shuttingDown = false;
@@ -154,14 +156,15 @@ public class CrawlController extends Configurable {
   protected <T extends WebCrawler> void start(final Class<T> _c, final int numberOfCrawlers, boolean isBlocking) {
     try {
       finished = false;
+      //清空爬取的本地数据
       crawlersLocalData.clear();
-      final List<Thread> threads = new ArrayList<>();
-      final List<T> crawlers = new ArrayList<>();
+      final List<Thread> threads = new ArrayList<>();//线程集合
+      final List<T> crawlers = new ArrayList<>();//爬虫集合
 
       for (int i = 1; i <= numberOfCrawlers; i++) {
-        T crawler = _c.newInstance();
+        T crawler = _c.newInstance();//用反射的方式创建爬虫处理逻辑类，爬虫处理基类WebCrawler其实是实现了Runnable接口，可以被线程直接调用，执行里面的run方法
         Thread thread = new Thread(crawler, "Crawler " + i);
-        crawler.setThread(thread);
+        crawler.setThread(thread);//设置爬虫处理逻辑类所处的线程
         crawler.init(i, this);
         thread.start();
         crawlers.add(crawler);
@@ -169,8 +172,8 @@ public class CrawlController extends Configurable {
         logger.info("Crawler {} started", i);
       }
 
-      final CrawlController controller = this;
-
+      final CrawlController controller = this;//把当前对象缓存起来
+      //监控线程
       Thread monitorThread = new Thread(new Runnable() {
 
         @Override
@@ -179,12 +182,12 @@ public class CrawlController extends Configurable {
             synchronized (waitingLock) {
 
               while (true) {
-                sleep(10);
+                sleep(10);//每个10s检测一次
                 boolean someoneIsWorking = false;
                 for (int i = 0; i < threads.size(); i++) {
                   Thread thread = threads.get(i);
                   if (!thread.isAlive()) {
-                    if (!shuttingDown) {
+                    if (!shuttingDown) {//线程挂掉了就重新创建
                       logger.info("Thread {} was dead, I'll recreate it", i);
                       T crawler = _c.newInstance();
                       thread = new Thread(crawler, "Crawler " + (i + 1));
@@ -196,17 +199,17 @@ public class CrawlController extends Configurable {
                       crawlers.remove(i);
                       crawlers.add(i, crawler);
                     }
-                  } else if (crawlers.get(i).isNotWaitingForNewURLs()) {
+                  } else if (crawlers.get(i).isNotWaitingForNewURLs()) {//如果该线程没有在等待分配新的URL，表示有线程还在工作
                     someoneIsWorking = true;
                   }
                 }
-                if (!someoneIsWorking) {
+                if (!someoneIsWorking) {//都没在工作
                   // Make sure again that none of the threads are alive.
                   logger.info("It looks like no thread is working, waiting for 10 seconds to make sure...");
-                  sleep(10);
+                  sleep(10);//睡眠10秒
 
                   someoneIsWorking = false;
-                  for (int i = 0; i < threads.size(); i++) {
+                  for (int i = 0; i < threads.size(); i++) {//再次检测一遍
                     Thread thread = threads.get(i);
                     if (thread.isAlive() && crawlers.get(i).isNotWaitingForNewURLs()) {
                       someoneIsWorking = true;
@@ -337,7 +340,8 @@ public class CrawlController extends Configurable {
    *
    */
   public void addSeed(String pageUrl, int docId) {
-    String canonicalUrl = URLCanonicalizer.getCanonicalURL(pageUrl);
+    //String canonicalUrl = URLCanonicalizer.getCanonicalURL(pageUrl);
+    String canonicalUrl = pageUrl;//modify by Ivan at 2015-3-31 不进行URL规则校验
     if (canonicalUrl == null) {
       logger.error("Invalid seed URL: {}", pageUrl);
     } else {
@@ -357,11 +361,12 @@ public class CrawlController extends Configurable {
       }
 
       WebURL webUrl = new WebURL();
-      webUrl.setURL(canonicalUrl);
-      webUrl.setDocid(docId);
-      webUrl.setDepth((short) 0);
+      webUrl.setURL(canonicalUrl);//待爬取的URL
+      webUrl.setDocid(docId);//crawler4j对URL的唯一标识
+      webUrl.setDepth((short) 0);//所属层级，顶级
+      webUrl.setOriginUrl(canonicalUrl);//最原始的URL,需要用作类型判断的URL
       if (robotstxtServer.allows(webUrl)) {
-        frontier.schedule(webUrl);
+        frontier.schedule(webUrl);//将URL加入到爬虫队列中
       } else {
         logger.warn("Robots.txt does not allow this seed: {}",
                     pageUrl); // using the WARN level here, as the user specifically asked to add this seed

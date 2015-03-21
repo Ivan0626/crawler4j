@@ -100,6 +100,7 @@ public class BasicCrawlController {
      * rootFolder manually.
      */
     config.setResumableCrawling(false);
+    
 
     /*
      * Instantiate the controller for this crawl.

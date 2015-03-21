@@ -18,7 +18,9 @@
 package edu.uci.ics.crawler4j.crawler;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import edu.uci.ics.crawler4j.crawler.authentication.AuthInfo;
 
@@ -58,6 +60,7 @@ public class CrawlConfig {
    * Politeness delay in milliseconds (delay between sending two requests to
    * the same host).
    */
+  //两个request url之间的预留时间，不能爬取的太频繁了，默认间隔200ms
   private int politenessDelay = 200;
 
   /**
@@ -83,12 +86,12 @@ public class CrawlConfig {
   /**
    * Socket timeout in milliseconds
    */
-  private int socketTimeout = 20000;
+  private int socketTimeout = 60000;
 
   /**
    * Connection timeout in milliseconds
    */
-  private int connectionTimeout = 30000;
+  private int connectionTimeout = 60000;
 
   /**
    * Max number of outgoing links which are processed from a page
@@ -136,8 +139,23 @@ public class CrawlConfig {
    * List of possible authentications needed by crawler
    */
   private List<AuthInfo> authInfos;
-
+  
   /**
+   * Supporting custom http headers/cookies.
+   */
+  private Map<String, String> customHeaders = new Hashtable<String, String>();
+  
+  private int connectionRequestTimeout = 60000;
+
+  public int getConnectionRequestTimeout() {
+	return connectionRequestTimeout;
+}
+
+public void setConnectionRequestTimeout(int connectionRequestTimeout) {
+	this.connectionRequestTimeout = connectionRequestTimeout;
+}
+
+/**
    * Validates the configs specified by this instance.
    *
    * @throws Exception on Validation fail
@@ -415,6 +433,21 @@ public class CrawlConfig {
     this.authInfos = authInfos;
   }
 
+  public Map<String, String> getCustomHeaders() {
+      return customHeaders;
+  }
+
+  public void setCustomHeaders(Map<String, String> customHeaders) {
+      if (customHeaders != null) {
+          this.customHeaders.clear();
+          this.customHeaders.putAll(customHeaders);
+      }
+  }
+
+  public void addCustomHeader(String key, String value) {
+      this.customHeaders.put(key, value);
+  }
+  
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();

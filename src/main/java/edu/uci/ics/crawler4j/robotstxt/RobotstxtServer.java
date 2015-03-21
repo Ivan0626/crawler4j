@@ -61,7 +61,7 @@ public class RobotstxtServer {
 
   /** Please note that in the case of a bad URL, TRUE will be returned */
   public boolean allows(WebURL webURL) {
-    if (config.isEnabled()) {
+    if (config.isEnabled()) {//在RobotstxtConfig对象中可以配置是否遵守rebotstxt协议
       try {
         URL url = new URL(webURL.getURL());
         String host = getHost(url);

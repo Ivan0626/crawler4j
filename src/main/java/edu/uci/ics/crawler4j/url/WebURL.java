@@ -44,9 +44,49 @@ public class WebURL implements Serializable {
   private String anchor;
   private byte priority;
   private String tag;
+  
+  private String ext;//扩展属性，用于线程执行时，下一层页面获取上一层的数据 add by Ivan at 2015-03-22
+  
+  private String headerName;//请求头部信息，用于Cookie等操作 add by Ivan at 2015-03-30
+  private String headerValue;
+  
+  private String originUrl;//原始URL，未经过URL转换，重定向的
+  
+  
 
+public String getOriginUrl() {
+	return originUrl;
+}
 
-  /**
+public void setOriginUrl(String originUrl) {
+	this.originUrl = originUrl;
+}
+
+public String getHeaderName() {
+	return headerName;
+}
+
+public void setHeaderName(String headerName) {
+	this.headerName = headerName;
+}
+
+public String getHeaderValue() {
+	return headerValue;
+}
+
+public void setHeaderValue(String headerValue) {
+	this.headerValue = headerValue;
+}
+
+public String getExt() {
+	return ext;
+}
+
+public void setExt(String ext) {
+	this.ext = ext;
+}
+
+/**
    * @return unique document id assigned to this Url.
    */
   public int getDocid() {

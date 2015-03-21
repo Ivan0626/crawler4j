@@ -34,17 +34,18 @@ public class MultipleCrawlerController {
   private static final Logger logger = LoggerFactory.getLogger(MultipleCrawlerController.class);
 
   public static void main(String[] args) throws Exception {
-    if (args.length != 1) {
+	  
+	 /* if (args.length != 1) {
       logger.info("Needed parameter: ");
       logger.info("\t rootFolder (it will contain intermediate crawl data)");
       return;
-    }
+    }*/
 
     /*
      * crawlStorageFolder is a folder where intermediate crawl data is
      * stored.
      */
-    String crawlStorageFolder = args[0];
+    String crawlStorageFolder = "data/crawl/root";
 
     CrawlConfig config1 = new CrawlConfig();
     CrawlConfig config2 = new CrawlConfig();
@@ -61,6 +62,9 @@ public class MultipleCrawlerController {
 
     config1.setMaxPagesToFetch(50);
     config2.setMaxPagesToFetch(100);
+    
+    config1.setMaxDepthOfCrawling(0);
+    config2.setMaxDepthOfCrawling(0);
 
     /*
      * We will use different PageFetchers for the two crawlers.
