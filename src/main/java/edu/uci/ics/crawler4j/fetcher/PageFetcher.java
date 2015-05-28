@@ -243,6 +243,12 @@ public class PageFetcher extends Configurable {
         if (header != null) {
           //String movedToUrl = URLCanonicalizer.getCanonicalURL(header.getValue(), toFetchURL);
           String movedToUrl = header.getValue();//modify by Ivan at 2015-3-31 不进行URL规则校验
+          
+          String host = "http://" + webUrl.getSubDomain() + "." + webUrl.getDomain();//modify by Ivan at 2015-5-28 修复Location:/s/ref=sr_nr_n_1?rh=n%3A2152650051&ie=UTF8
+          if(movedToUrl.indexOf(host) == -1){
+        	  movedToUrl = host + movedToUrl;
+          }
+          
           fetchResult.setMovedToUrl(movedToUrl);
         }
       } else if (statusCode == HttpStatus.SC_OK) { // is 200, everything looks ok
