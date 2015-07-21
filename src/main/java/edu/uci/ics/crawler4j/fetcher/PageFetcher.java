@@ -206,7 +206,12 @@ public class PageFetcher extends Configurable {
     String toFetchURL = webUrl.getURL();
     HttpUriRequest request = null;
     try {
-      request = newHttpUriRequest(toFetchURL);
+    	
+    	if(toFetchURL.indexOf("http://list.suning.com/") > -1){//苏宁类目的url会自动重定向，需要改用POST请求，特殊处理下
+    		request = newHttpUriRequestPost(toFetchURL);
+    	}else{
+    		request = newHttpUriRequest(toFetchURL);
+    	}
       
       //添加请求头部信息(全局的)
       for (Map.Entry<String, String> entry : config.getCustomHeaders().entrySet()) {
@@ -244,8 +249,8 @@ public class PageFetcher extends Configurable {
           //String movedToUrl = URLCanonicalizer.getCanonicalURL(header.getValue(), toFetchURL);
           String movedToUrl = header.getValue();//modify by Ivan at 2015-3-31 不进行URL规则校验
           
-          String host = "http://" + webUrl.getSubDomain() + "." + webUrl.getDomain();//modify by Ivan at 2015-5-28 修复Location:/s/ref=sr_nr_n_1?rh=n%3A2152650051&ie=UTF8
-          if(movedToUrl.indexOf(host) == -1){
+          if(movedToUrl.indexOf("http://") == -1){
+        	  String host = "http://" + webUrl.getSubDomain() + "." + webUrl.getDomain();//modify by Ivan at 2015-5-28 修复Location:/s/ref=sr_nr_n_1?rh=n%3A2152650051&ie=UTF8
         	  movedToUrl = host + movedToUrl;
           }
           
@@ -315,6 +320,34 @@ public class PageFetcher extends Configurable {
 			URI uri = new URI(toUrl.getProtocol(), toUrl.getHost(), toUrl.getPath(), toUrl.getQuery(), toUrl.getRef());
 			
 			return new HttpGet(uri);//利用apache http-client 的GET方式访问URL
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+	} catch (MalformedURLException e) {
+		e.printStackTrace();
+	}
+    return null;
+  }
+  
+  /**
+   * Creates a new HttpUriRequest for the given url. The default is to create a HttpGet without
+   * any further configuration. Subclasses may override this method and provide their own logic.
+   *
+   * @param url the url to be fetched
+   * @return the HttpUriRequest for the given url
+   */
+  protected HttpUriRequest newHttpUriRequestPost(String url) {
+	  if(url.indexOf("%") > -1){//不需要转码
+		  return new HttpPost(url);
+	  }
+	  
+	  //地址中涉及了特殊字符，如‘｜’‘&’等,必须采用%0xXX方式来替代特殊字符,先把String转成URL，再通过过URL生成URI
+	try {
+		URL toUrl = new URL(url);
+		try {
+			URI uri = new URI(toUrl.getProtocol(), toUrl.getHost(), toUrl.getPath(), toUrl.getQuery(), toUrl.getRef());
+			
+			return new HttpPost(uri);//利用apache http-client 的POST方式访问URL
 		} catch (URISyntaxException e) {
 			e.printStackTrace();
 		}
